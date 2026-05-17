@@ -34,6 +34,7 @@ import {
 } from '../utils/voiceEngine';
 import LexGuardLogo from '../components/LexGuardLogo';
 import { BACKEND_URL } from '../config';
+import { loadSampleContract } from '../utils/loadSampleContract';
 
 // Interfaces matching Pydantic schemas
 interface PolicyRule {
@@ -71,7 +72,7 @@ interface ContractAnalysisResult {
   verdict: string;
   policy_applied: string;
   document_text: string;
-  engine_source?: 'gemini';
+  engine_source?: 'gemini' | 'demo';
 }
 
 interface ChatMessage {
@@ -188,6 +189,7 @@ export default function Dashboard() {
   const [isChatting, setIsChatting] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
+  const [demoNotice, setDemoNotice] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
   const [hoveredClauseId, setHoveredClauseId] = useState<string | null>(null);
   
@@ -462,6 +464,7 @@ export default function Dashboard() {
     setIsUploading(true);
     setSelectedRisk(null);
     setAnalysis(null);
+    setDemoNotice(null);
     setChatHistory([]);
     setActiveTab('risks');
 
@@ -500,31 +503,27 @@ I identified **${result.risks_found.filter(r => r.severity !== 'INFO').length} r
     }
   };
 
-  // Load Mock Sample Contract API Call
+  // Load sample contract (live Gemini when backend is up, offline demo otherwise)
   const handleLoadSample = async () => {
     setIsUploading(true);
     setSelectedRisk(null);
     setAnalysis(null);
     setChatHistory([]);
     setActiveTab('risks');
-
-    const formData = new FormData();
-    formData.append('policy_id', selectedPolicyId);
+    setDemoNotice(null);
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/analyze/sample`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to load sample contract.');
-      }
-
-      const result: ContractAnalysisResult = await res.json();
+      const { analysis: result, source, message } = await loadSampleContract(selectedPolicyId);
       setAnalysis(result);
 
-      // Initialize Chatbot introduction
+      if (source === 'demo') {
+        setDemoNotice(
+          message
+            ? `Offline demo mode — ${message}`
+            : 'Offline demo mode — connect the backend for live Gemini analysis.',
+        );
+      }
+
       setChatHistory([
         {
           sender: 'ai',
@@ -532,11 +531,12 @@ I identified **${result.risks_found.filter(r => r.severity !== 'INFO').length} r
 
 Our model detected **${result.risks_found.filter(r => r.severity !== 'INFO').length} major risk elements** (such as uncapped liabilities, non-reciprocal confidentiality, and unfavorable Swiss arbitration governing law). 
 
-Browse the highlighted segments in the **Document text viewer** on the left, or review the redlines on the right!`
-        }
+Browse the highlighted segments in the **Document text viewer** on the left, or review the redlines on the right!`,
+        },
       ]);
-    } catch (err: any) {
-      alert(`Sample loading error: ${err.message || 'Make sure the backend server is running.'}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Sample loading error: ${msg}`);
     } finally {
       setIsUploading(false);
     }
@@ -773,6 +773,20 @@ Browse the highlighted segments in the **Document text viewer** on the left, or 
 
       {/* Main Container */}
       <main className={`main-content ${analysis ? 'workspace-main' : ''}`}>
+        {demoNotice && analysis && (
+          <motion.div
+            className="demo-notice-banner"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            role="status"
+          >
+            <Info size={16} />
+            <span>{demoNotice}</span>
+            <button type="button" className="demo-notice-dismiss" onClick={() => setDemoNotice(null)} aria-label="Dismiss">
+              ×
+            </button>
+          </motion.div>
+        )}
         {!analysis && !isUploading ? (
           /* INITIAL SETUP VIEW: Drag & Drop + Policy Config */
           <motion.div className="dashboard-grid" initial="hidden" animate="visible" variants={listMotion}>
