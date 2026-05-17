@@ -1,0 +1,10 @@
+{
+  "name": "prompt-wars",
+  "private": true,
+  "version": "1.0.0",
+  "description": "LexGuard AI — Vercel builds the frontend subfolder",
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev"
+  }
+}

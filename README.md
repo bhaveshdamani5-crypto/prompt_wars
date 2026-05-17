@@ -109,6 +109,15 @@ For production frontend, set the API URL:
 VITE_API_URL=https://your-api-host:8000
 ```
 
+### Deploy frontend on Vercel
+
+1. Import [prompt_wars](https://github.com/bhaveshdamani5-crypto/prompt_wars) in [Vercel](https://vercel.com/new).
+2. **Either** leave **Root Directory** empty (repo-root `vercel.json` builds `frontend/`) **or** set Root Directory to `frontend` (uses `frontend/vercel.json`).
+3. Add environment variable **`VITE_API_URL`** = your deployed FastAPI URL (Vercel only hosts the static UI; the Python backend must run on Render, Railway, Fly.io, etc.).
+4. Redeploy after changing env vars (Vite bakes `VITE_*` at build time).
+
+If `/app` returns 404, the SPA rewrite was missing — the included `vercel.json` files fix that. API calls failing in production usually mean `VITE_API_URL` still points at `localhost`.
+
 ---
 
 ## Project structure
